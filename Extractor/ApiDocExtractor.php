@@ -15,6 +15,7 @@ use Doctrine\Common\Annotations\Reader;
 use Doctrine\Common\Util\ClassUtils;
 use Nelmio\ApiDocBundle\Annotation\ApiDoc;
 use Nelmio\ApiDocBundle\DataTypes;
+use Nelmio\ApiDocBundle\Parser\FormTypeParser;
 use Nelmio\ApiDocBundle\Parser\ParserInterface;
 use Nelmio\ApiDocBundle\Parser\PostParserInterface;
 use Nelmio\ApiDocBundle\Util\DocCommentExtractor;
@@ -310,6 +311,12 @@ class ApiDocExtractor
                 }
             }
 
+            $prefix = '';
+            foreach ($supportedParsers as $supportedParser) {
+                if ($supportedParser instanceof FormTypeParser) {
+                    $prefix = $this->container->get('form.factory')->createBuilder($annotation->getInput()['class'])->getName();
+                }
+            }
 
             $normalizedChildInput = array();
             if (array_key_exists('data', $normalizedInput)) {
@@ -318,8 +325,14 @@ class ApiDocExtractor
                     if ($parser->supports($normalizedChildInput)) {
                         $supportedParsers[] = $parser;
                         foreach ($parser->parse($normalizedChildInput) as $name => $parameter) {
-                            if (array_key_exists($name, $parameters)) {
-                                $parameters[$name] = array_merge($parameter, $parameters[$name]);
+                            if (!empty($prefix)) {
+                                if (array_key_exists($name, $parameters[$prefix]['children'])) {
+                                    $parameters[$prefix]['children'][$name] = array_merge($parameter, $parameters[$prefix]['children'][$name]);
+                                }
+                            } else {
+                                if (array_key_exists($name, $parameters)) {
+                                    $parameters[$name] = array_merge($parameter, $parameters[$name]);
+                                }
                             }
                         }
                     }
